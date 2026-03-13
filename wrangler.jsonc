@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "turborepo-remote-cache",
+  "name": "turborepo-remote-cache-cloudflare",
   "main": "src/index.ts",
   "compatibility_date": "2026-01-19",
   "upload_source_maps": true,
