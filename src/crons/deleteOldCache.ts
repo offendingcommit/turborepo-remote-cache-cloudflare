@@ -15,7 +15,7 @@ class R2KeysForDeletion {
 export async function deleteOldCache(env: Env): Promise<void> {
   const BUCKET_CUTOFF_HOURS = env.BUCKET_OBJECT_EXPIRATION_HOURS;
   const storage = env.STORAGE_MANAGER.getActiveStorage();
-  let truncated = false;
+  let truncated: boolean;
   let cursor: string | undefined;
   let list: ListResultWithMetadata;
   const keysMarkedForDeletion: R2KeysForDeletion[] = [];

@@ -47,7 +47,7 @@ internalRouter.post(
 );
 
 internalRouter.get('/count-objects', async (c) => {
-  let truncated = false;
+  let truncated: boolean;
   let cursor: string | undefined;
   let list: ListResult;
   let count = 0;
