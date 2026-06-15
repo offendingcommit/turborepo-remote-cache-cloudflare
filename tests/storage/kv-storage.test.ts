@@ -1,18 +1,22 @@
 import { reset } from 'cloudflare:test';
 import { env } from 'cloudflare:workers';
 import { beforeEach, afterEach, describe, test, expect, vi } from 'vitest';
+
 import { Env } from '~/index';
 import { StorageManager } from '~/storage';
 import { KvStorage } from '~/storage/kv-storage';
 
 describe('kv-storage', () => {
-  let workerEnv: Required<Env>;
+  let workerEnv: Env;
   let storage: KvStorage;
   let startTime: number;
 
   beforeEach(async () => {
     await reset();
-    workerEnv = env as Required<Env>;
+    workerEnv = env;
+    if (!workerEnv.KV_STORE) {
+      throw new Error('Expected KV_STORE to be configured');
+    }
     storage = new KvStorage(workerEnv.KV_STORE);
     startTime = Date.now();
     vi.useFakeTimers();
@@ -123,13 +127,13 @@ describe('kv-storage', () => {
       const buffer = new TextEncoder().encode('value1').buffer;
       await storage.write('key1', buffer);
       const result = await storage.read('key1');
-      const dataAsBuffer = (await StorageManager.readableStreamToBuffer(result!)) as ArrayBuffer;
+      const dataAsBuffer = await StorageManager.readableStreamToBuffer(result!);
       const bufferView = new Uint8Array(dataAsBuffer);
       expect(bufferView).toEqual(new Uint8Array(buffer));
     });
 
     test('sets expiration TTL when available', async () => {
-      storage = new KvStorage(workerEnv.KV_STORE, 1);
+      storage = new KvStorage(workerEnv.KV_STORE!, 1);
       await storage.write('key1', 'value1');
       const result = await storage.read('key1');
       const dataAsText = await StorageManager.readableStreamToText(result!);

@@ -1,7 +1,7 @@
-import '../src';
 import { createExecutionContext } from 'cloudflare:test';
 import { env } from 'cloudflare:workers';
-import { expect, it, describe, vi, type MockedFunction, beforeEach } from 'vitest';
+import { expect, it, describe, vi, beforeEach } from 'vitest';
+
 import { deleteOldCache } from '~/crons/deleteOldCache';
 import { Env, workerHandler } from '~/index';
 import { app } from '~/routes';
@@ -10,17 +10,17 @@ vi.mock('~/crons/deleteOldCache', async (importActual) => {
   const actual = await importActual<typeof import('~/crons/deleteOldCache')>();
   return {
     ...actual,
-    deleteOldCache: vi.fn(),
+    deleteOldCache: vi.fn<typeof actual.deleteOldCache>(),
   };
 });
-const deleteOldCacheMock = deleteOldCache as MockedFunction<typeof deleteOldCache>;
+const deleteOldCacheMock = vi.mocked(deleteOldCache);
 
 describe('remote-cache worker', () => {
   let workerEnv: Env;
   let ctx: ExecutionContext;
 
   beforeEach(() => {
-    workerEnv = env as Env;
+    workerEnv = env;
     ctx = createExecutionContext();
   });
 
@@ -28,7 +28,7 @@ describe('remote-cache worker', () => {
     const response = await workerHandler.fetch(
       new Request('https://turborepo-remote-cache.com/ping'),
       workerEnv,
-      ctx
+      ctx,
     );
     expect(response).toBeTruthy();
     expect(response.status).toBe(200);
@@ -64,7 +64,7 @@ describe('remote-cache scheduled event', () => {
   let ctx: ExecutionContext;
 
   beforeEach(() => {
-    workerEnv = env as Env;
+    workerEnv = env;
     ctx = createExecutionContext();
   });
 

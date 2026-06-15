@@ -1,17 +1,19 @@
 import { createExecutionContext, reset } from 'cloudflare:test';
 import { env } from 'cloudflare:workers';
-import { describe, MockedFunction, afterEach, beforeEach, expect, test, vi } from 'vitest';
+import { describe, afterEach, beforeEach, expect, test, vi } from 'vitest';
+
 import { deleteOldCache } from '~/crons/deleteOldCache';
 import { Env, workerHandler } from '~/index';
+import { StorageManager } from '~/storage';
 
 vi.mock('~/crons/deleteOldCache', async (importActual) => {
   const actual = await importActual<typeof import('~/crons/deleteOldCache')>();
   return {
     ...actual,
-    deleteOldCache: vi.fn(),
+    deleteOldCache: vi.fn<typeof actual.deleteOldCache>(),
   };
 });
-const deleteOldCacheMock = deleteOldCache as MockedFunction<typeof deleteOldCache>;
+const deleteOldCacheMock = vi.mocked(deleteOldCache);
 
 describe('/internal Routes', () => {
   let workerEnv: Env;
@@ -24,7 +26,8 @@ describe('/internal Routes', () => {
 
   describe('/internal/delete-old-cache route', () => {
     beforeEach(() => {
-      workerEnv = env as Env;
+      workerEnv = env;
+      workerEnv.STORAGE_MANAGER = new StorageManager(workerEnv);
       ctx = createExecutionContext();
     });
 
@@ -80,7 +83,7 @@ describe('/internal Routes', () => {
 
   describe('/internal/populate-random-objects route', () => {
     beforeEach(() => {
-      workerEnv = env as Env;
+      workerEnv = env;
       ctx = createExecutionContext();
     });
 
@@ -101,7 +104,7 @@ describe('/internal Routes', () => {
       const response = await app.fetch(request, workerEnv, ctx);
       expect(response.status).toBe(200);
 
-      const list = await workerEnv.STORAGE_MANAGER.getActiveStorage().list();
+      const list = await workerEnv.STORAGE_MANAGER!.getActiveStorage().list();
       expect(list.keys.length).toBe(10);
     });
 
@@ -115,14 +118,15 @@ describe('/internal Routes', () => {
       });
       const response = await app.fetch(request, workerEnv, ctx);
       expect(response.status).toBe(401);
-      const list = await workerEnv.STORAGE_MANAGER.getActiveStorage().list();
+      const list = await workerEnv.STORAGE_MANAGER!.getActiveStorage().list();
       expect(list.keys.length).toBe(0);
     });
   });
 
   describe('/internal/count-objects route', () => {
     beforeEach(() => {
-      workerEnv = env as Env;
+      workerEnv = env;
+      workerEnv.STORAGE_MANAGER = new StorageManager(workerEnv);
       ctx = createExecutionContext();
     });
 
@@ -145,7 +149,7 @@ describe('/internal Routes', () => {
     });
 
     test('should return the number of objects in R2 when bucket is not empty', async () => {
-      await workerEnv.STORAGE_MANAGER.getActiveStorage().write('key', 'value');
+      await workerEnv.STORAGE_MANAGER!.getActiveStorage().write('key', 'value');
       const request = new Request('http://localhost/internal/count-objects', {
         method: 'GET',
         headers: {

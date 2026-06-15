@@ -7,10 +7,10 @@ export type Env = Omit<
   'BUCKET_OBJECT_EXPIRATION_HOURS' | 'ENVIRONMENT' | 'R2_STORE'
 > & {
   BUCKET_OBJECT_EXPIRATION_HOURS: number;
-  ENVIRONMENT: 'development' | 'production' | 'testing';
+  ENVIRONMENT: string;
   R2_STORE?: R2Bucket;
   KV_STORE?: KVNamespace;
-  STORAGE_MANAGER: StorageManager;
+  STORAGE_MANAGER?: StorageManager;
 };
 
 export const workerHandler = {

@@ -1,8 +1,10 @@
-import type { Env } from '../..';
-import { bearerAuthFromEnv } from '../auth';
 import { vValidator } from '@hono/valibot-validator';
 import { Hono } from 'hono/tiny';
 import * as v from 'valibot';
+
+import type { Env } from '../..';
+
+import { bearerAuthFromEnv } from '../auth';
 
 export const DEFAULT_TEAM_ID = 'team_default_team';
 const ARTIFACT_CACHE_NAME = 'r2-artifacts';
@@ -15,6 +17,13 @@ type WaitUntilContext = {
 export const artifactRouter = new Hono<{ Bindings: Env }>();
 
 artifactRouter.use('*', bearerAuthFromEnv);
+
+const getActiveStorage = (env: Env) => {
+  if (!env.STORAGE_MANAGER) {
+    throw new Error('Storage manager is not configured');
+  }
+  return env.STORAGE_MANAGER.getActiveStorage();
+};
 
 const vCoerceNumber = () => v.pipe(v.unknown(), v.transform(Number), v.number());
 
@@ -34,14 +43,14 @@ const getCachedArtifactResponse = async (request: Request) => {
 const cacheArtifactResponse = (
   executionCtx: WaitUntilContext,
   request: Request,
-  response: Response
+  response: Response,
 ) => {
   if (!canUseArtifactCache(request)) return;
 
   executionCtx.waitUntil(
     caches
       .open(ARTIFACT_CACHE_NAME)
-      .then((artifactCache) => artifactCache.put(request.url, response))
+      .then((artifactCache) => artifactCache.put(request.url, response)),
   );
 };
 
@@ -51,7 +60,7 @@ artifactRouter.post(
     'json',
     v.object({
       hashes: v.array(v.string()),
-    })
+    }),
   ),
   vValidator('query', v.object({ teamId: v.optional(v.string()), slug: v.optional(v.string()) })),
   (c) => {
@@ -62,7 +71,7 @@ artifactRouter.post(
     void teamId;
     // TODO: figure out what this route actually does, the OpenAPI spec is unclear
     return c.json({});
-  }
+  },
 );
 
 artifactRouter.get('/status', (c) => {
@@ -82,10 +91,10 @@ artifactRouter.put(
       'x-artifact-duration': v.optional(vCoerceNumber()),
       'x-artifact-client-ci': v.optional(v.string()),
       'x-artifact-client-interactive': v.optional(
-        v.pipe(vCoerceNumber(), v.minValue(0), v.maxValue(1))
+        v.pipe(vCoerceNumber(), v.minValue(0), v.maxValue(1)),
       ),
       'x-artifact-tag': v.optional(v.string()),
-    })
+    }),
   ),
   async (c) => {
     const { artifactId } = c.req.valid('param');
@@ -93,7 +102,7 @@ artifactRouter.put(
     const teamId = teamIdQuery ?? slug ?? DEFAULT_TEAM_ID;
     const validatedHeaders = c.req.valid('header');
 
-    const storage = c.env.STORAGE_MANAGER.getActiveStorage();
+    const storage = getActiveStorage(c.env);
     const objectKey = `${teamId}/${artifactId}`;
 
     const storageMetadata: Record<string, string> = {};
@@ -104,7 +113,7 @@ artifactRouter.put(
 
     const uploadUrl = new URL(`${artifactId}?teamId=${teamId}`, c.req.raw.url).toString();
     return c.json({ urls: [uploadUrl] }, 202);
-  }
+  },
 );
 
 // Hono router .get() method captures both GET and HEAD requests
@@ -117,9 +126,9 @@ artifactRouter.get(
     v.object({
       'x-artifact-client-ci': v.optional(v.string()),
       'x-artifact-client-interactive': v.optional(
-        v.pipe(vCoerceNumber(), v.minValue(0), v.maxValue(1))
+        v.pipe(vCoerceNumber(), v.minValue(0), v.maxValue(1)),
       ),
-    })
+    }),
   ),
   async (c) => {
     const { artifactId } = c.req.valid('param');
@@ -131,7 +140,7 @@ artifactRouter.get(
       return cachedResponse;
     }
 
-    const storage = c.env.STORAGE_MANAGER.getActiveStorage();
+    const storage = getActiveStorage(c.env);
     const objectKey = `${teamId}/${artifactId}`;
 
     const storedObject = await storage.readWithMetadata(objectKey);
@@ -154,14 +163,14 @@ artifactRouter.get(
       cacheArtifactResponse(
         c.executionCtx,
         c.req.raw,
-        new Response(cacheData, { headers: responseHeaders, status: 200 })
+        new Response(cacheData, { headers: responseHeaders, status: 200 }),
       );
     }
 
     const response = c.body(responseData, 200, responseHeaders);
 
     return response;
-  }
+  },
 );
 
 artifactRouter.post(
@@ -175,8 +184,8 @@ artifactRouter.post(
         event: v.union([v.literal('HIT'), v.literal('MISS')]),
         hash: v.string(),
         duration: v.optional(v.number()),
-      })
-    )
+      }),
+    ),
   ),
   vValidator('query', v.object({ teamId: v.optional(v.string()), slug: v.optional(v.string()) })),
   vValidator(
@@ -184,9 +193,9 @@ artifactRouter.post(
     v.object({
       'x-artifact-client-ci': v.optional(v.string()),
       'x-artifact-client-interactive': v.optional(
-        v.pipe(vCoerceNumber(), v.minValue(0), v.maxValue(1))
+        v.pipe(vCoerceNumber(), v.minValue(0), v.maxValue(1)),
       ),
-    })
+    }),
   ),
   (c) => {
     const data = c.req.valid('json');
@@ -196,5 +205,5 @@ artifactRouter.post(
     void data;
     void teamId;
     return c.json({});
-  }
+  },
 );

@@ -1,6 +1,7 @@
 import { createExecutionContext } from 'cloudflare:test';
 import { env } from 'cloudflare:workers';
 import { describe, beforeEach, test, expect } from 'vitest';
+
 import { Env } from '~/index';
 import { app } from '~/routes';
 
@@ -9,7 +10,7 @@ describe('Homepage route', () => {
   let ctx: ExecutionContext;
 
   beforeEach(() => {
-    workerEnv = env as Env;
+    workerEnv = env;
     ctx = createExecutionContext();
   });
 

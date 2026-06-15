@@ -1,6 +1,7 @@
 import { createExecutionContext, reset, waitOnExecutionContext } from 'cloudflare:test';
 import { env } from 'cloudflare:workers';
 import { describe, beforeEach, expect, test } from 'vitest';
+
 import { Env, workerHandler } from '~/index';
 import { DEFAULT_TEAM_ID } from '~/routes/v8/artifacts';
 import { StorageManager } from '~/storage';
@@ -20,13 +21,13 @@ describe('v8 Artifacts API', () => {
 
   describe('GET artifact endpoint', () => {
     beforeEach(async () => {
-      workerEnv = env as Env;
+      workerEnv = env;
       workerEnv.STORAGE_MANAGER = new StorageManager(workerEnv);
       ctx = createExecutionContext();
       await workerEnv.STORAGE_MANAGER.getActiveStorage().write(
         `${teamId}/${artifactId}`,
         artifactContent,
-        { artifactTag }
+        { artifactTag },
       );
     });
 
@@ -42,11 +43,9 @@ describe('v8 Artifacts API', () => {
       let res = await app.fetch(request, workerEnv, ctx);
       expect(res.status).toBe(404);
 
-      await workerEnv.STORAGE_MANAGER.getActiveStorage().write(
-        `${DEFAULT_TEAM_ID}/${artifactId}`,
-        artifactContent,
-        { artifactTag }
-      );
+      await workerEnv
+        .STORAGE_MANAGER!.getActiveStorage()
+        .write(`${DEFAULT_TEAM_ID}/${artifactId}`, artifactContent, { artifactTag });
 
       request = createArtifactGetRequest(`http://localhost/v8/artifacts/${artifactId}`);
       res = await app.fetch(request, workerEnv, ctx);
@@ -55,7 +54,7 @@ describe('v8 Artifacts API', () => {
 
     test('should return 404 when artifact does not exist', async () => {
       const request = createArtifactGetRequest(
-        `http://localhost/v8/artifacts/missing-${artifactId}?teamId=${teamId}`
+        `http://localhost/v8/artifacts/missing-${artifactId}?teamId=${teamId}`,
       );
       const res = await app.fetch(request, workerEnv, ctx);
       expect(res.status).toBe(404);
@@ -63,7 +62,7 @@ describe('v8 Artifacts API', () => {
 
     test('should return 200 when artifact exists', async () => {
       const request = createArtifactGetRequest(
-        `http://localhost/v8/artifacts/${artifactId}?teamId=${teamId}`
+        `http://localhost/v8/artifacts/${artifactId}?teamId=${teamId}`,
       );
       const res = await app.fetch(request, workerEnv, ctx);
       expect(res.status).toBe(200);
@@ -71,13 +70,13 @@ describe('v8 Artifacts API', () => {
 
     test('should accept both teamId and slug as query params', async () => {
       const request = createArtifactGetRequest(
-        `http://localhost/v8/artifacts/${artifactId}?teamId=${teamId}`
+        `http://localhost/v8/artifacts/${artifactId}?teamId=${teamId}`,
       );
       const res = await app.fetch(request, workerEnv, ctx);
       expect(res.status).toBe(200);
 
       const request2 = createArtifactGetRequest(
-        `http://localhost/v8/artifacts/${artifactId}?slug=${teamId}`
+        `http://localhost/v8/artifacts/${artifactId}?slug=${teamId}`,
       );
       const res2 = await app.fetch(request2, workerEnv, ctx);
       expect(res2.status).toBe(200);
@@ -85,7 +84,7 @@ describe('v8 Artifacts API', () => {
 
     test('should return artifact content when artifact exists', async () => {
       const request = createArtifactGetRequest(
-        `http://localhost/v8/artifacts/${artifactId}?teamId=${teamId}`
+        `http://localhost/v8/artifacts/${artifactId}?teamId=${teamId}`,
       );
       const res = await app.fetch(request, workerEnv, ctx);
       expect(res.status).toBe(200);
@@ -94,7 +93,7 @@ describe('v8 Artifacts API', () => {
 
     test('should return the proper content type when artifact exists', async () => {
       const request = createArtifactGetRequest(
-        `http://localhost/v8/artifacts/${artifactId}?teamId=${teamId}`
+        `http://localhost/v8/artifacts/${artifactId}?teamId=${teamId}`,
       );
       const res = await app.fetch(request, workerEnv, ctx);
       expect(res.status).toBe(200);
@@ -104,7 +103,7 @@ describe('v8 Artifacts API', () => {
 
     test('should return the artifact tag', async () => {
       const request = createArtifactGetRequest(
-        `http://localhost/v8/artifacts/${artifactId}?teamId=${teamId}`
+        `http://localhost/v8/artifacts/${artifactId}?teamId=${teamId}`,
       );
       const res = await app.fetch(request, workerEnv, ctx);
       expect(res.status).toBe(200);
@@ -115,7 +114,7 @@ describe('v8 Artifacts API', () => {
 
     test('should return cache headers on every request', async () => {
       const request = createArtifactGetRequest(
-        `http://localhost/v8/artifacts/${artifactId}?teamId=${teamId}`
+        `http://localhost/v8/artifacts/${artifactId}?teamId=${teamId}`,
       );
       const res = await app.fetch(request, workerEnv, ctx);
       expect(res.status).toBe(200);
@@ -134,7 +133,7 @@ describe('v8 Artifacts API', () => {
       const cachedRes = await artifactCache.match(url);
       expect(cachedRes?.status).toBe(200);
       expect(cachedRes?.headers.get('Cache-Control')).toBe(
-        'max-age=300, stale-while-revalidate=300'
+        'max-age=300, stale-while-revalidate=300',
       );
       expect(await cachedRes?.text()).toBe(artifactContent);
     });
@@ -142,7 +141,7 @@ describe('v8 Artifacts API', () => {
 
   describe('PUT artifact endpoint', () => {
     beforeEach(() => {
-      workerEnv = env as Env;
+      workerEnv = env;
       workerEnv.STORAGE_MANAGER = new StorageManager(workerEnv);
       ctx = createExecutionContext();
     });
@@ -167,36 +166,36 @@ describe('v8 Artifacts API', () => {
       const res = await app.fetch(request, workerEnv, ctx);
       expect(res.status).toBe(202);
 
-      const artifactStream = await workerEnv.STORAGE_MANAGER.getActiveStorage().read(
-        `${DEFAULT_TEAM_ID}/${artifactId}`
-      );
+      const artifactStream = await workerEnv
+        .STORAGE_MANAGER!.getActiveStorage()
+        .read(`${DEFAULT_TEAM_ID}/${artifactId}`);
       const artifact = await StorageManager.readableStreamToText(artifactStream!);
       expect(artifact).toEqual(artifactContent);
     });
 
     test('should successfully save artifact', async () => {
       const request = createArtifactPutRequest(
-        `http://localhost/v8/artifacts/${artifactId}?teamId=${teamId}`
+        `http://localhost/v8/artifacts/${artifactId}?teamId=${teamId}`,
       );
       const res = await app.fetch(request, workerEnv, ctx);
       expect(res.status).toBe(202);
 
-      const artifactStream = await workerEnv.STORAGE_MANAGER.getActiveStorage().read(
-        `${teamId}/${artifactId}`
-      );
+      const artifactStream = await workerEnv
+        .STORAGE_MANAGER!.getActiveStorage()
+        .read(`${teamId}/${artifactId}`);
       const artifact = await StorageManager.readableStreamToText(artifactStream!);
       expect(artifact).toEqual(artifactContent);
     });
 
     test('should accept both teamId and slug as query params', async () => {
       const request = createArtifactPutRequest(
-        `http://localhost/v8/artifacts/${artifactId}?teamId=${teamId}`
+        `http://localhost/v8/artifacts/${artifactId}?teamId=${teamId}`,
       );
       const res = await app.fetch(request, workerEnv, ctx);
       expect(res.status).toBe(202);
 
       const request2 = createArtifactPutRequest(
-        `http://localhost/v8/artifacts/${artifactId}?slug=${teamId}`
+        `http://localhost/v8/artifacts/${artifactId}?slug=${teamId}`,
       );
       const res2 = await app.fetch(request2, workerEnv, ctx);
       expect(res2.status).toBe(202);
@@ -205,14 +204,14 @@ describe('v8 Artifacts API', () => {
     test('should save artifact tag when provided', async () => {
       const request = createArtifactPutRequest(
         `http://localhost/v8/artifacts/${artifactId}?teamId=${teamId}`,
-        true
+        true,
       );
       const res = await app.fetch(request, workerEnv, ctx);
       expect(res.status).toBe(202);
 
-      const artifactWithMeta = await workerEnv.STORAGE_MANAGER.getActiveStorage().readWithMetadata(
-        `${teamId}/${artifactId}`
-      );
+      const artifactWithMeta = await workerEnv
+        .STORAGE_MANAGER!.getActiveStorage()
+        .readWithMetadata(`${teamId}/${artifactId}`);
       const artifact = await StorageManager.readableStreamToText(artifactWithMeta.data!);
       expect(artifact).toEqual(artifactContent);
       expect(artifactWithMeta?.metadata?.customMetadata?.artifactTag).toEqual(artifactTag);
@@ -220,7 +219,7 @@ describe('v8 Artifacts API', () => {
 
     test('should return 400 when content type is not application/octet-stream', async () => {
       const request = createArtifactPutRequest(
-        `http://localhost/v8/artifacts/${artifactId}?teamId=${teamId}`
+        `http://localhost/v8/artifacts/${artifactId}?teamId=${teamId}`,
       );
       request.headers.delete('Content-Type');
       const res = await app.fetch(request, workerEnv, ctx);
@@ -230,13 +229,13 @@ describe('v8 Artifacts API', () => {
 
   describe('HEAD artifact endpoint', () => {
     beforeEach(async () => {
-      workerEnv = env as Env;
+      workerEnv = env;
       workerEnv.STORAGE_MANAGER = new StorageManager(workerEnv);
       ctx = createExecutionContext();
       await workerEnv.STORAGE_MANAGER.getActiveStorage().write(
         `${teamId}/${artifactId}`,
         artifactContent,
-        { artifactTag }
+        { artifactTag },
       );
     });
 
@@ -252,11 +251,9 @@ describe('v8 Artifacts API', () => {
       let res = await app.fetch(request, workerEnv, ctx);
       expect(res.status).toBe(404);
 
-      await workerEnv.STORAGE_MANAGER.getActiveStorage().write(
-        `${DEFAULT_TEAM_ID}/${artifactId}`,
-        artifactContent,
-        { artifactTag }
-      );
+      await workerEnv
+        .STORAGE_MANAGER!.getActiveStorage()
+        .write(`${DEFAULT_TEAM_ID}/${artifactId}`, artifactContent, { artifactTag });
       request = createArtifactHeadRequest(`http://localhost/v8/artifacts/${artifactId}`);
       res = await app.fetch(request, workerEnv, ctx);
       expect(res.status).toBe(200);
@@ -264,7 +261,7 @@ describe('v8 Artifacts API', () => {
 
     test('should return 404 when artifact does not exist', async () => {
       const request = createArtifactHeadRequest(
-        `http://localhost/v8/artifacts/missing-${artifactId}?teamId=${teamId}`
+        `http://localhost/v8/artifacts/missing-${artifactId}?teamId=${teamId}`,
       );
       const res = await app.fetch(request, workerEnv, ctx);
       expect(res.status).toBe(404);
@@ -272,7 +269,7 @@ describe('v8 Artifacts API', () => {
 
     test('should return 200 when artifact exists', async () => {
       const request = createArtifactHeadRequest(
-        `http://localhost/v8/artifacts/${artifactId}?teamId=${teamId}`
+        `http://localhost/v8/artifacts/${artifactId}?teamId=${teamId}`,
       );
       const res = await app.fetch(request, workerEnv, ctx);
       expect(res.status).toBe(200);
@@ -280,13 +277,13 @@ describe('v8 Artifacts API', () => {
 
     test('should accept both teamId and slug as query params', async () => {
       const request = createArtifactHeadRequest(
-        `http://localhost/v8/artifacts/${artifactId}?teamId=${teamId}`
+        `http://localhost/v8/artifacts/${artifactId}?teamId=${teamId}`,
       );
       const res = await app.fetch(request, workerEnv, ctx);
       expect(res.status).toBe(200);
 
       const request2 = createArtifactHeadRequest(
-        `http://localhost/v8/artifacts/${artifactId}?slug=${teamId}`
+        `http://localhost/v8/artifacts/${artifactId}?slug=${teamId}`,
       );
       const res2 = await app.fetch(request2, workerEnv, ctx);
       expect(res2.status).toBe(200);
@@ -295,7 +292,7 @@ describe('v8 Artifacts API', () => {
 
   describe('Artifact events endpoint', () => {
     beforeEach(() => {
-      workerEnv = env as Env;
+      workerEnv = env;
       workerEnv.STORAGE_MANAGER = new StorageManager(workerEnv);
       ctx = createExecutionContext();
     });

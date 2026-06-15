@@ -1,6 +1,7 @@
 import { reset } from 'cloudflare:test';
 import { env } from 'cloudflare:workers';
-import { type MockedFunction, describe, test, expect, afterEach, beforeEach, vi } from 'vitest';
+import { describe, test, expect, afterEach, beforeEach, vi } from 'vitest';
+
 import { CURSOR_SIZE, deleteOldCache } from '~/crons/deleteOldCache';
 import { Env } from '~/index';
 import { KvStorage, R2Storage, StorageInterface, StorageManager } from '~/storage';
@@ -10,10 +11,10 @@ vi.mock('~/utils/date', async (importActual) => {
   const actual = await importActual<typeof import('~/utils/date')>();
   return {
     ...actual,
-    isDateOlderThan: vi.fn(actual.isDateOlderThan),
+    isDateOlderThan: vi.fn<typeof actual.isDateOlderThan>(actual.isDateOlderThan),
   };
 });
-const isDateOlderThanMock = isDateOlderThan as MockedFunction<typeof isDateOlderThan>;
+const isDateOlderThanMock = vi.mocked(isDateOlderThan);
 
 describe('deleteOldCache', () => {
   let workerEnv: Env;
@@ -25,7 +26,7 @@ describe('deleteOldCache', () => {
 
   beforeEach(async () => {
     await reset();
-    workerEnv = env as Env;
+    workerEnv = env;
   });
 
   describe('r2 storage', () => {
@@ -43,7 +44,7 @@ describe('deleteOldCache', () => {
     });
 
     test('should use r2 storage', () => {
-      expect(workerEnv.STORAGE_MANAGER.getActiveStorage()).toBe(storage);
+      expect(workerEnv.STORAGE_MANAGER!.getActiveStorage()).toBe(storage);
       expect(storage).toBeInstanceOf(R2Storage);
     });
 
@@ -106,7 +107,7 @@ describe('deleteOldCache', () => {
     });
 
     test('should use kv storage', () => {
-      expect(workerEnv.STORAGE_MANAGER.getActiveStorage()).toBe(storage);
+      expect(workerEnv.STORAGE_MANAGER!.getActiveStorage()).toBe(storage);
       expect(storage).toBeInstanceOf(KvStorage);
     });
 

@@ -24,7 +24,7 @@ export class KvStorage implements StorageInterface {
         metadata: this.transformMetadata(key.metadata),
       })),
       cursor: result.list_complete ? undefined : result.cursor,
-      truncated: result.list_complete !== true,
+      truncated: !result.list_complete,
     };
   }
 
@@ -33,12 +33,12 @@ export class KvStorage implements StorageInterface {
     return {
       keys: result.keys.map((key) => key.name),
       cursor: result.list_complete ? undefined : result.cursor,
-      truncated: result.list_complete !== true,
+      truncated: !result.list_complete,
     };
   }
 
   async readWithMetadata(
-    key: string
+    key: string,
   ): Promise<{ data: ReadableStream | undefined; metadata: Metadata | undefined }> {
     const value = await this.KV_STORE.getWithMetadata<KvMetadata>(key, { type: 'stream' });
     return {
