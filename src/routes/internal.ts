@@ -1,18 +1,14 @@
 import type { Env } from '..';
 import { deleteOldCache } from '../crons/deleteOldCache';
 import type { ListResult } from '../storage';
+import { bearerAuthFromEnv } from './auth';
 import { vValidator } from '@hono/valibot-validator';
-import { bearerAuth } from 'hono/bearer-auth';
 import { Hono } from 'hono/tiny';
 import * as v from 'valibot';
 
 export const internalRouter = new Hono<{ Bindings: Env }>();
 
-internalRouter.use('*', async (c, next) => {
-  const bearer = bearerAuth({ token: c.env.TURBO_TOKEN });
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-  return bearer(c, next);
-});
+internalRouter.use('*', bearerAuthFromEnv);
 
 internalRouter.post(
   '/delete-expired-objects',

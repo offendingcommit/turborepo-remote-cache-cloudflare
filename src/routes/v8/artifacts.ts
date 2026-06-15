@@ -1,22 +1,49 @@
 import type { Env } from '../..';
+import { bearerAuthFromEnv } from '../auth';
 import { vValidator } from '@hono/valibot-validator';
-import { bearerAuth } from 'hono/bearer-auth';
-import { cache } from 'hono/cache';
 import { Hono } from 'hono/tiny';
 import * as v from 'valibot';
 
 export const DEFAULT_TEAM_ID = 'team_default_team';
+const ARTIFACT_CACHE_NAME = 'r2-artifacts';
+const ARTIFACT_CACHE_CONTROL = 'max-age=300, stale-while-revalidate=300';
+type WaitUntilContext = {
+  waitUntil: (promise: Promise<unknown>) => void;
+};
 
 // Route - /v8/artifacts
 export const artifactRouter = new Hono<{ Bindings: Env }>();
 
-artifactRouter.use('*', async (c, next) => {
-  const bearer = bearerAuth({ token: c.env.TURBO_TOKEN });
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-  return bearer(c, next);
-});
+artifactRouter.use('*', bearerAuthFromEnv);
 
 const vCoerceNumber = () => v.pipe(v.unknown(), v.transform(Number), v.number());
+
+const canUseArtifactCache = (request: Request) =>
+  request.method === 'GET' && typeof caches !== 'undefined';
+
+const getCachedArtifactResponse = async (request: Request) => {
+  if (!canUseArtifactCache(request)) return undefined;
+
+  const artifactCache = await caches.open(ARTIFACT_CACHE_NAME);
+  const cachedResponse = await artifactCache.match(request.url);
+
+  if (!cachedResponse) return undefined;
+  return cachedResponse;
+};
+
+const cacheArtifactResponse = (
+  executionCtx: WaitUntilContext,
+  request: Request,
+  response: Response
+) => {
+  if (!canUseArtifactCache(request)) return;
+
+  executionCtx.waitUntil(
+    caches
+      .open(ARTIFACT_CACHE_NAME)
+      .then((artifactCache) => artifactCache.put(request.url, response))
+  );
+};
 
 artifactRouter.post(
   '/',
@@ -83,11 +110,6 @@ artifactRouter.put(
 // Hono router .get() method captures both GET and HEAD requests
 artifactRouter.get(
   '/:artifactId',
-  cache({
-    cacheName: 'r2-artifacts',
-    wait: false,
-    cacheControl: 'max-age=300, stale-while-revalidate=300',
-  }),
   vValidator('param', v.object({ artifactId: v.string() })),
   vValidator('query', v.object({ teamId: v.optional(v.string()), slug: v.optional(v.string()) })),
   vValidator(
@@ -103,6 +125,11 @@ artifactRouter.get(
     const { artifactId } = c.req.valid('param');
     const { teamId: teamIdQuery, slug } = c.req.valid('query');
     const teamId = teamIdQuery ?? slug ?? DEFAULT_TEAM_ID;
+    const cachedResponse = await getCachedArtifactResponse(c.req.raw);
+
+    if (cachedResponse) {
+      return cachedResponse;
+    }
 
     const storage = c.env.STORAGE_MANAGER.getActiveStorage();
     const objectKey = `${teamId}/${artifactId}`;
@@ -112,12 +139,28 @@ artifactRouter.get(
       return c.json({}, 404);
     }
 
-    c.header('Content-Type', 'application/octet-stream');
+    const responseHeaders: Record<string, string> = {
+      'Cache-Control': ARTIFACT_CACHE_CONTROL,
+      'Content-Type': 'application/octet-stream',
+    };
     if (storedObject.metadata?.customMetadata.artifactTag) {
-      c.header('x-artifact-tag', storedObject.metadata.customMetadata.artifactTag);
+      responseHeaders['x-artifact-tag'] = storedObject.metadata.customMetadata.artifactTag;
     }
-    c.status(200);
-    return c.body(storedObject.data);
+    let responseData = storedObject.data;
+
+    if (canUseArtifactCache(c.req.raw)) {
+      const [clientData, cacheData] = storedObject.data.tee();
+      responseData = clientData;
+      cacheArtifactResponse(
+        c.executionCtx,
+        c.req.raw,
+        new Response(cacheData, { headers: responseHeaders, status: 200 })
+      );
+    }
+
+    const response = c.body(responseData, 200, responseHeaders);
+
+    return response;
   }
 );
 

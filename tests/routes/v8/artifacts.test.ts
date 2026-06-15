@@ -1,4 +1,4 @@
-import { createExecutionContext, reset } from 'cloudflare:test';
+import { createExecutionContext, reset, waitOnExecutionContext } from 'cloudflare:test';
 import { env } from 'cloudflare:workers';
 import { describe, beforeEach, expect, test } from 'vitest';
 import { Env, workerHandler } from '~/index';
@@ -120,6 +120,23 @@ describe('v8 Artifacts API', () => {
       const res = await app.fetch(request, workerEnv, ctx);
       expect(res.status).toBe(200);
       expect(res.headers.get('Cache-Control')).toBe('max-age=300, stale-while-revalidate=300');
+    });
+
+    test('should cache authorized artifact responses', async () => {
+      const url = `http://localhost/v8/artifacts/${artifactId}?teamId=${teamId}`;
+      const request = createArtifactGetRequest(url);
+      const res = await app.fetch(request, workerEnv, ctx);
+      expect(res.status).toBe(200);
+
+      await waitOnExecutionContext(ctx);
+
+      const artifactCache = await caches.open('r2-artifacts');
+      const cachedRes = await artifactCache.match(url);
+      expect(cachedRes?.status).toBe(200);
+      expect(cachedRes?.headers.get('Cache-Control')).toBe(
+        'max-age=300, stale-while-revalidate=300'
+      );
+      expect(await cachedRes?.text()).toBe(artifactContent);
     });
   });
 
