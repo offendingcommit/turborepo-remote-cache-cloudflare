@@ -4,7 +4,7 @@ import { StorageManager } from './storage';
 
 export type Env = Omit<
   Cloudflare.Env,
-  'BUCKET_OBJECT_EXPIRATION_HOURS' | 'ENVIRONMENT' | 'R2_STORE'
+  'BUCKET_OBJECT_EXPIRATION_HOURS' | 'ENVIRONMENT' | 'R2_STORE' | 'KV_STORE'
 > & {
   BUCKET_OBJECT_EXPIRATION_HOURS: number;
   ENVIRONMENT: string;

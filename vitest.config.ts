@@ -18,6 +18,7 @@ export default defineConfig({
           TURBO_TOKEN: 'test-token',
         },
         kvNamespaces: ['KV_STORE'],
+        r2Buckets: ['R2_STORE'],
       },
     }),
   ],
