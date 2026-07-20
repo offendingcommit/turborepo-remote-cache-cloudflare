@@ -1,5 +1,7 @@
-import { env, createExecutionContext } from 'cloudflare:test';
+import { createExecutionContext } from 'cloudflare:test';
+import { env } from 'cloudflare:workers';
 import { describe, beforeEach, test, expect } from 'vitest';
+
 import { Env } from '~/index';
 import { app } from '~/routes';
 

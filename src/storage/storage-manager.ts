@@ -34,9 +34,7 @@ export class StorageManager {
   public static async readableStreamToText(stream: ReadableStream): Promise<string> {
     return await new Response(stream).text();
   }
-  public static async readableStreamToBuffer(
-    stream: ReadableStream
-  ): Promise<ArrayBuffer | ArrayBufferView> {
+  public static async readableStreamToBuffer(stream: ReadableStream): Promise<ArrayBuffer> {
     return await new Response(stream).arrayBuffer();
   }
   public static textToReadableStream(text: string): ReadableStream {
@@ -47,5 +45,6 @@ export class StorageManager {
 export class InvalidStorageError extends Error {
   constructor(message: string) {
     super(message);
+    this.name = 'InvalidStorageError';
   }
 }

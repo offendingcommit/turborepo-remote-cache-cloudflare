@@ -2,7 +2,7 @@ export interface StorageInterface {
   listWithMetadata: (options?: ListFilterOptions) => Promise<ListResultWithMetadata>;
   list: (options?: ListFilterOptions) => Promise<ListResult>;
   readWithMetadata: (
-    key: string
+    key: string,
   ) => Promise<{ data: ReadableStream | undefined; metadata: Metadata | undefined }>;
   read: (key: string) => Promise<ReadableStream | undefined>;
   write: (key: string, data: WritableValue, metadata?: Record<string, string>) => Promise<void>;

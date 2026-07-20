@@ -14,6 +14,9 @@ class R2KeysForDeletion {
 
 export async function deleteOldCache(env: Env): Promise<void> {
   const BUCKET_CUTOFF_HOURS = env.BUCKET_OBJECT_EXPIRATION_HOURS;
+  if (!env.STORAGE_MANAGER) {
+    throw new Error('Storage manager is not configured');
+  }
   const storage = env.STORAGE_MANAGER.getActiveStorage();
   let truncated: boolean;
   let cursor: string | undefined;

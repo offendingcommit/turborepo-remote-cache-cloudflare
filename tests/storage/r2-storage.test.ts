@@ -1,16 +1,22 @@
-import { env } from 'cloudflare:test';
+import { reset } from 'cloudflare:test';
+import { env } from 'cloudflare:workers';
 import { beforeEach, afterEach, describe, test, expect, vi } from 'vitest';
+
 import { Env } from '~/index';
 import { StorageManager } from '~/storage';
 import { R2Storage } from '~/storage/r2-storage';
 
 describe('r2-storage', () => {
-  let workerEnv: Required<Env>;
+  let workerEnv: Env;
   let storage: R2Storage;
   let startTime: number;
 
-  beforeEach(() => {
-    workerEnv = env as Required<Env>;
+  beforeEach(async () => {
+    await reset();
+    workerEnv = env;
+    if (!workerEnv.R2_STORE) {
+      throw new Error('Expected R2_STORE to be configured');
+    }
     storage = new R2Storage(workerEnv.R2_STORE);
     startTime = Date.now();
     vi.useFakeTimers();
@@ -40,7 +46,7 @@ describe('r2-storage', () => {
       ]);
       // Go back to checking startDate for createdAt when mocking time is fixed
       expect(result.keys.every((k) => k.metadata?.staticMetadata.createdAt instanceof Date)).toBe(
-        true
+        true,
       );
       expect(result.cursor).toBeUndefined();
       expect(result.truncated).toBe(false);
@@ -120,7 +126,7 @@ describe('r2-storage', () => {
       const buffer = new TextEncoder().encode('value1').buffer;
       await storage.write('key1', buffer);
       const result = await storage.read('key1');
-      const dataAsBuffer = (await StorageManager.readableStreamToBuffer(result!)) as ArrayBuffer;
+      const dataAsBuffer = await StorageManager.readableStreamToBuffer(result!);
       const bufferView = new Uint8Array(dataAsBuffer);
       expect(bufferView).toEqual(new Uint8Array(buffer));
     });

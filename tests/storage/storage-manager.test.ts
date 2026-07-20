@@ -1,14 +1,15 @@
-import { env } from 'cloudflare:test';
+import { env } from 'cloudflare:workers';
 import { beforeEach, describe, afterEach, test, expect, vi } from 'vitest';
+
 import { Env } from '~/index';
 import { R2Storage, KvStorage, StorageManager } from '~/storage';
 
 describe('storage-manager', () => {
-  let workerEnv: Required<Env>;
+  let workerEnv: Env;
   let storageManager: StorageManager;
 
   beforeEach(() => {
-    workerEnv = env as Required<Env>;
+    workerEnv = env;
   });
 
   afterEach(() => {

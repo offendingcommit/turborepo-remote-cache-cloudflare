@@ -2,13 +2,15 @@ import { deleteOldCache } from './crons/deleteOldCache';
 import { app } from './routes';
 import { StorageManager } from './storage';
 
-export type Env = {
-  ENVIRONMENT: 'development' | 'production';
+export type Env = Omit<
+  Cloudflare.Env,
+  'BUCKET_OBJECT_EXPIRATION_HOURS' | 'ENVIRONMENT' | 'R2_STORE'
+> & {
+  BUCKET_OBJECT_EXPIRATION_HOURS: number;
+  ENVIRONMENT: string;
   R2_STORE?: R2Bucket;
   KV_STORE?: KVNamespace;
-  TURBO_TOKEN: string;
-  BUCKET_OBJECT_EXPIRATION_HOURS: number;
-  STORAGE_MANAGER: StorageManager;
+  STORAGE_MANAGER?: StorageManager;
 };
 
 export const workerHandler = {

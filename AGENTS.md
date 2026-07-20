@@ -10,7 +10,7 @@ An open-source Turborepo custom remote cache server built for Cloudflare Workers
 
 ```bash
 # Development
-pnpm install          # Install dependencies (requires Node >= 22, pnpm 10.28.0)
+pnpm install          # Install dependencies (requires Node >= 22, pnpm 11.6.0)
 pnpm dev              # Start development server
 pnpm build            # Build for production (outputs to dist/)
 
@@ -21,8 +21,9 @@ pnpm vitest run tests/routes/v8/artifacts.test.ts  # Run single test file
 
 # Code Quality
 pnpm typecheck        # TypeScript type checking
-pnpm lint             # ESLint + Prettier check
-pnpm format           # Auto-format with Prettier
+pnpm lint             # Oxlint + Oxfmt check
+pnpm lint:fix         # Auto-fix safe Oxlint findings
+pnpm format           # Auto-format with Oxfmt
 
 # Documentation
 pnpm docs:dev         # Start docs dev server
@@ -71,10 +72,11 @@ Deletes objects older than `BUCKET_OBJECT_EXPIRATION_HOURS` (default 720h/30 day
 
 ## Testing
 
-Uses Vitest with `@cloudflare/vitest-pool-workers` for Workers simulation. Test config (`wrangler.vitest.jsonc`) provides both R2 and KV bindings.
+Uses Vitest with `@cloudflare/vitest-pool-workers` for Workers simulation. The Vitest config uses the `cloudflareTest()` plugin with `wrangler.jsonc` plus Miniflare overrides for test-only bindings like `KV_STORE`.
 
 ```typescript
-import { createExecutionContext, env } from 'cloudflare:test';
+import { createExecutionContext } from 'cloudflare:test';
+import { env } from 'cloudflare:workers';
 import { workerHandler } from '~/index';
 import { StorageManager } from '~/storage';
 
